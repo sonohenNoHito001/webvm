@@ -1,37 +1,49 @@
+# i386アーキテクチャのDebian bookwormをベースイメージとして使用
 FROM --platform=i386 i386/debian:bookworm
+
+# apt-getを非対話モードで実行するように設定
 ARG DEBIAN_FRONTEND=noninteractive
+
+# パッケージリストをクリーンアップ、更新、アップグレード
 RUN apt-get clean && apt-get update && apt-get -y upgrade
-RUN apt-get -y install apt-utils gcc \
+
+# 必要なパッケージをインストール
+# 元々あったパッケージに加えて、Rustのコンパイルに必要な`build-essential`を追加
+RUN apt-get -y install apt-utils gcc build-essential \
 	python3 vim unzip ruby nodejs \
 	fakeroot dbus base whiptail hexedit \
 	patch wamerican ucf manpages \
 	file luajit make lua5.4 dialog curl \
 	less cowsay netcat-openbsd
+
+# 'user'という名前のユーザーを作成し、パスワードを設定
 RUN useradd -m user && echo "user:password" | chpasswd
-COPY --chown=user:user ./examples /home/user/examples
+
+# サンプルファイルをコピーし、所有者を'user'に設定
+COPY --chown=user:user./examples /home/user/examples
 RUN chmod -R +x  /home/user/examples/lua
-# We set WORKDIR, as this gets extracted by Webvm to be used as the cwd. This is optional.
-WORKDIR /home/user/
-# We set env, as this gets extracted by Webvm. This is optional.
-ENV HOME="/home/user" TERM="xterm" USER="user" SHELL="/bin/bash" EDITOR="vim" LANG="en_US.UTF-8" LC_ALL="C"
-RUN echo 'root:password' | chpasswd
-CMD [ "/bin/bash" ]
 
-#... 既存のdebian_miniのセットアップ...
-
-# 必要なパッケージ（curlとビルドツール）をインストール
-RUN apt-get update && apt-get install -y curl build-essential
-
-# 'user'ユーザーとしてrustupをホームディレクトリにインストール
+# --- Rustインストール処理の追加 ---
+# 'user'ユーザーに切り替えてrustupをインストール
 USER user
-WORKDIR /home/user
-# -yフラグを付けて非対話的にインストールを実行
+# 非対話モード(-y)でrustupをインストール
 RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
 
 # cargoのパスを環境変数に追加
 ENV PATH="/home/user/.cargo/bin:${PATH}"
 
-# rootユーザーに戻す
+# 後続のコマンドのためにrootユーザーに戻す
 USER root
+# --- Rustインストール処理の終了 ---
 
-#... Dockerfileの残りの部分...
+# WebVMがカレントディレクトリとして使用するためにWORKDIRを設定（任意）
+WORKDIR /home/user/
+
+# WebVMが抽出する環境変数を設定（任意）
+ENV HOME="/home/user" TERM="xterm" USER="user" SHELL="/bin/bash" EDITOR="vim" LANG="en_US.UTF-8" LC_ALL="C"
+
+# rootユーザーのパスワードを設定
+RUN echo 'root:password' | chpasswd
+
+# コンテナ起動時のデフォルトコマンドを設定
+CMD [ "/bin/bash" ]
