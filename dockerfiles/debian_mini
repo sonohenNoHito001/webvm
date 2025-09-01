@@ -18,8 +18,9 @@ RUN chmod -R +x  /home/user/examples/lua
 # --- Rustインストール処理の追加 ---
 # 'user'ユーザーに切り替えてrustupをインストール
 USER user
-# 非対話モード(-y)でrustupをインストール
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# 非対話モード(-y)かつ最小プロファイル(--profile minimal)でrustupをインストール
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
 
 # cargoのパスを環境変数に追加
 ENV PATH="/home/user/.cargo/bin:${PATH}"
