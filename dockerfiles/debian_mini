@@ -16,3 +16,22 @@ WORKDIR /home/user/
 ENV HOME="/home/user" TERM="xterm" USER="user" SHELL="/bin/bash" EDITOR="vim" LANG="en_US.UTF-8" LC_ALL="C"
 RUN echo 'root:password' | chpasswd
 CMD [ "/bin/bash" ]
+
+#... 既存のdebian_miniのセットアップ...
+
+# 必要なパッケージ（curlとビルドツール）をインストール
+RUN apt-get update && apt-get install -y curl build-essential
+
+# 'user'ユーザーとしてrustupをホームディレクトリにインストール
+USER user
+WORKDIR /home/user
+# -yフラグを付けて非対話的にインストールを実行
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# cargoのパスを環境変数に追加
+ENV PATH="/home/user/.cargo/bin:${PATH}"
+
+# rootユーザーに戻す
+USER root
+
+#... Dockerfileの残りの部分...
