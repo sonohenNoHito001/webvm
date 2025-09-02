@@ -1,52 +1,31 @@
-# i386アーキテクチャのDebian bookwormをベースイメージとして使用
-FROM --platform=i386 i386/debian:bookworm
+#
+# WebVM向け 最小構成Rust開発環境 Dockerfile
+#
+# ベースイメージには、32ビット(i386)アーキテクチャのDebian Bookworm (slim版) を指定。
+# これはWebVM/CheerpXの必須要件である。
+FROM i386/debian:bookworm-slim
 
-# apt-getを非対話モードで実行するように設定
-ARG DEBIAN_FRONTEND=noninteractive
+# apt-getを非対話モードで実行するための環境変数。
+ENV DEBIAN_FRONTEND=noninteractive
 
-# パッケージリストをクリーンアップ、更新、アップグレード
-RUN apt-get clean && apt-get update && apt-get -y upgrade
+# パッケージのインストールとクリーンアップを単一のRUN命令にまとめることで、
+# Dockerイメージのレイヤー数を削減し、最終的なサイズを最適化する。
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        curl \
+        build-essential \
+    && \
+    # rustupインストーラーをダウンロードし、非対話モード(-y)で実行。
+    # これにより、i686-unknown-linux-gnuターゲットのツールチェーンがインストールされる。
+    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+    # インストール後に不要となったパッケージとaptキャッシュを完全に削除する。
+    apt-get purge -y --auto-remove curl build-essential && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-# 必要なパッケージをインストール
-# 元々あったパッケージに加えて、Rustのコンパイルに必要な`build-essential`を追加
-# ★★★ ここにあったパッケージ名のタイポを修正しました ★★★
-RUN apt-get -y install apt-utils gcc build-essential \
-	python3 vim unzip ruby nodejs \
-	fakeroot dbus base whiptail hexedit \
-	patch wamerican ucf manpages \
-	file luajit make lua5.4 dialog curl \
-	less cowsay netcat-openbsd \
-	&& apt-get clean \
-	&& rm -rf /var/lib/apt/lists/*
+# Rustツールチェーンのパスを環境変数PATHに追加する。
+# これにより、WebVMのターミナルでcargoやrustcを直接実行できるようになる。
+ENV PATH="/root/.cargo/bin:${PATH}"
 
-# 'user'という名前のユーザーを作成し、パスワードを設定
-RUN useradd -m user && echo "user:password" | chpasswd
-
-# サンプルファイルをコピーし、所有者を'user'に設定
-COPY --chown=user:user ./examples /home/user/examples
-RUN chmod -R +x  /home/user/examples/lua
-
-# --- Rustインストール処理の追加 ---
-# 'user'ユーザーに切り替えてrustupをインストール
-USER user
-# 非対話モード(-y)かつ最小プロファイル(--profile minimal)でrustupをインストールし、容量を節約
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-
-# cargoのパスを環境変数に追加
-ENV PATH="/home/user/.cargo/bin:${PATH}"
-
-# 後続のコマンドのためにrootユーザーに戻す
-USER root
-# --- Rustインストール処理の終了 ---
-
-# WebVMがカレントディレクトリとして使用するためにWORKDIRを設定（任意）
-WORKDIR /home/user/
-
-# WebVMが抽出する環境変数を設定（任意）
-ENV HOME="/home/user" TERM="xterm" USER="user" SHELL="/bin/bash" EDITOR="vim" LANG="en_US.UTF-8" LC_ALL="C"
-
-# rootユーザーのパスワードを設定
-RUN echo 'root:password' | chpasswd
-
-# コンテナ起動時のデフォルトコマンドを設定
-CMD [ "/bin/bash" ]
+# WebVM起動時のデフォルトコマンドとしてbashシェルを指定。
+CMD ["/bin/bash"]
