@@ -9,19 +9,19 @@ RUN apt-get clean && apt-get update && apt-get -y upgrade
 
 # 必要なパッケージをインストール
 # 元々あったパッケージに加えて、Rustのコンパイルに必要な`build-essential`を追加
+# ★★★ ここにあったパッケージ名のタイポを修正しました ★★★
 RUN apt-get -y install apt-utils gcc build-essential \
 	python3 vim unzip ruby nodejs \
 	fakeroot dbus base whiptail hexedit \
 	patch wamerican ucf manpages \
 	file luajit make lua5.4 dialog curl \
-	less cowsay net-cat openbsd
+	less cowsay netcat-openbsd
 
 # 'user'という名前のユーザーを作成し、パスワードを設定
 RUN useradd -m user && echo "user:password" | chpasswd
 
 # サンプルファイルをコピーし、所有者を'user'に設定
-# ★★★ ここにあったタイポを修正しました ★★★
-COPY --chown=user:user ./examples /home/user/examples
+COPY --chown=user:user./examples /home/user/examples
 RUN chmod -R +x  /home/user/examples/lua
 
 # --- Rustインストール処理の追加 ---
