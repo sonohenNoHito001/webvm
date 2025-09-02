@@ -15,7 +15,7 @@ RUN apt-get -y install apt-utils gcc build-essential \
 	fakeroot dbus base whiptail hexedit \
 	patch wamerican ucf manpages \
 	file luajit make lua5.4 dialog curl \
-	less cowsay netcat-openbsd
+	less cowsay netcat-openbsd \
 	&& apt-get clean \
 	&& rm -rf /var/lib/apt/lists/*
 
