@@ -14,7 +14,7 @@ RUN apt-get -y install apt-utils gcc build-essential \
 	fakeroot dbus base whiptail hexedit \
 	patch wamerican ucf manpages \
 	file luajit make lua5.4 dialog curl \
-	less cowsay netcat-openbsd
+	less cowsay net-cat openbsd
 
 # 'user'という名前のユーザーを作成し、パスワードを設定
 RUN useradd -m user && echo "user:password" | chpasswd
