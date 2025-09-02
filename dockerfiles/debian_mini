@@ -1,31 +1,49 @@
 #
-# WebVM向け 最小構成Rust開発環境 Dockerfile
+# WebVM向け 安定版Rust開発環境 Dockerfile
 #
-# ベースイメージには、32ビット(i386)アーキテクチャのDebian Bookworm (slim版) を指定。
-# これはWebVM/CheerpXの必須要件である。
-FROM i386/debian:bookworm-slim
+# ベースイメージには、公式WebVMで実績のある32ビット(i386)アーキテクチャの
+# Debian Bookworm (通常版) を指定し、互換性を確保します。
+FROM i386/debian:bookworm
 
 # apt-getを非対話モードで実行するための環境変数。
 ENV DEBIAN_FRONTEND=noninteractive
 
-# パッケージのインストールとクリーンアップを単一のRUN命令にまとめることで、
-# Dockerイメージのレイヤー数を削減し、最終的なサイズを最適化する。
+# パッケージリストを更新し、WebVMの基本動作とRustのコンパイルに
+# 必要なパッケージをすべてインストールします。
+# 最後にaptキャッシュをクリーンアップして容量を節約します。
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        curl \
+        # Rustのコンパイルに必要なツール
         build-essential \
+        curl \
+        # WebVMの基本環境に含まれる可能性のあるユーティリティ
+        python3 \
+        vim \
+        git \
+        man-db \
+        less \
+        sudo \
     && \
-    # rustupインストーラーをダウンロードし、非対話モード(-y)で実行。
-    # これにより、i686-unknown-linux-gnuターゲットのツールチェーンがインストールされる。
-    curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
-    # インストール後に不要となったパッケージとaptキャッシュを完全に削除する。
-    apt-get purge -y --auto-remove curl build-essential && \
+    # インストール後に不要となったaptキャッシュを完全に削除します。
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-# Rustツールチェーンのパスを環境変数PATHに追加する。
-# これにより、WebVMのターミナルでcargoやrustcを直接実行できるようになる。
-ENV PATH="/root/.cargo/bin:${PATH}"
+# WebVMが期待する 'user' という名前のユーザーを作成し、パスワードを設定します。
+# sudoグループに追加することで、`sudo apt install`などが実行可能になります。
+RUN useradd -m user -s /bin/bash && \
+    echo "user:password" | chpasswd && \
+    adduser user sudo
 
-# WebVM起動時のデフォルトコマンドとしてbashシェルを指定。
+# 'user'ユーザーに切り替えてrustupをインストールします。
+USER user
+WORKDIR /home/user
+
+# 非対話モード(-y)でrustupをインストールします。
+# ディスク容量に余裕があるため、通常プロファイルでインストールします。
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+
+# cargoのパスを環境変数PATHに追加します。
+ENV PATH="/home/user/.cargo/bin:${PATH}"
+
+# WebVM起動時のデフォルトコマンドとしてbashシェルを指定します。
 CMD ["/bin/bash"]
